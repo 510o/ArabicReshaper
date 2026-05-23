@@ -3,8 +3,8 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ArabicShaping"
+name = "ArabicReshaper"
 version = "0.1.0"
 
 [tool.setuptools]
-packages = ["ArabicShaping"]
+packages = ["ArabicReshaper"]
