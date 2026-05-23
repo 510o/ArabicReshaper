@@ -6,5 +6,5 @@ build-backend = "setuptools.build_meta"
 name = "ArabicReshaper"
 version = "0.1.0"
 
-[tool.setuptools]
-packages = ["ArabicReshaper"]
+[tool.setuptools.packages.find]
+where = ["."]
