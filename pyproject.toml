@@ -3,8 +3,13 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ArabicReshaper"
+name = "arabicreshaper"
 version = "0.1.0"
+description = "Reshape Arabic text for proper display"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["arabicreshaper*"]
+
+[tool.setuptools.package-data]
+arabicreshaper = ["ArabicShaping.txt"]
