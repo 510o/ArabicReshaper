@@ -62,12 +62,12 @@ def reshape(text: str, harakat: bool = True, get_display: bool = False) -> str:
         if letter in data['D'] + data['R']:
             _k = 1 + sum(1 for _ in takewhile(lambda c: combining(c), (text[j] for j in range(i-1, -1, -1))))
             k_ = 1 + sum(1 for _ in takewhile(lambda c: combining(c), (text[j] for j in range(i+1, len(text)))))
-            _letter, letter_ = [l for l in [text[i - _k] if i > 0 else None, text[i + k_] if i + k_ < len(text) else None]]
+            _letter, letter_ = [l for l in [text[i - _k] if i - _k >= 0 else None, text[i + k_] if i + k_ < len(text) else None]]
 
             Connect = 0
             if _letter and _letter in data['D'] + data['L'] + data['C']: Connect += 1
             if letter in data['D'] and letter_ and letter_ in data['D'] + data['R'] + data['C']: Connect += 2
-            
+
             reshape_text[i] = chr(ord(isolated(letter)) + Connect)
     result = ''.join(reshape_text)
 
@@ -79,9 +79,9 @@ def reshape(text: str, harakat: bool = True, get_display: bool = False) -> str:
 
 
 def _get_display(text: str) -> str:
-    if all(bidirectional(letter) in ('NSM', 'WS', 'ON', 'AL') for letter in text):
+    if all(bidirectional(ch) in ('NSM', 'WS', 'ON', 'AL') for ch in text):
         return text[::-1]
-    
+
     try:
         from bidi.algorithm import get_display
     except ImportError:
@@ -107,11 +107,11 @@ def fix_diacritics_display(text: str) -> str:
 
 
 def clear_diacritics(text: str) -> str:
-    return ''.join(letter for letter in text if not combining(letter))
+    return ''.join(ch for ch in text if not combining(ch))
 
 
-def isolated(l):
+def isolated(letter: str) -> str:
     try:
-        return lookup(chartype(l) + " ISOLATED FORM")
+        return lookup(chartype(letter) + " ISOLATED FORM")
     except (LookupError, ValueError, TypeError):
         return None
