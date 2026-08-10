@@ -50,10 +50,11 @@ def _download_and_cache():
 
 
 def reshape(text: str, harakat: bool = True, get_display: bool = False) -> str:
+    has_diacritics = any(combining(ch) for ch in text)
     data = _load_arabic_shaping()
 
-    if not harakat:
-        text = clear_movements(text)
+    if has_diacritics and not harakat:
+        text = clear_diacritics(text)
 
     reshape_text = list(text)
 
@@ -68,10 +69,11 @@ def reshape(text: str, harakat: bool = True, get_display: bool = False) -> str:
             if letter in data['D'] and letter_ and letter_ in data['D'] + data['R'] + data['C']: Connect += 2
             
             reshape_text[i] = chr(ord(isolated(letter)) + Connect)
-    result = "".join(reshape_text)
+    result = ''.join(reshape_text)
 
     if get_display:
         result = _get_display(result)
+        if has_diacritics: result = fix_diacritics_display(result)
 
     return result
 
@@ -90,8 +92,22 @@ def _get_display(text: str) -> str:
     return get_display(text)
 
 
-def clear_movements(text: str) -> str:
-    return "".join(letter for letter in text if not combining(letter))
+def fix_diacritics_display(text: str) -> str:
+    result, pending = [], []
+    for ch in text:
+        if combining(ch):
+            pending.insert(0, ch)
+        else:
+            result.append(ch)
+            result.extend(pending)
+            pending = []
+
+    result.extend(pending)
+    return ''.join(result)
+
+
+def clear_diacritics(text: str) -> str:
+    return ''.join(letter for letter in text if not combining(letter))
 
 
 def isolated(l):
