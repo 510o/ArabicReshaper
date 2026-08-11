@@ -1,4 +1,4 @@
-from unicodedata import lookup, combining, bidirectional, name as chartype
+from unicodedata import lookup, combining, bidirectional, mirrored, name as chartype
 from urllib.request import Request, urlopen
 from itertools import takewhile
 from pathlib import Path
@@ -49,7 +49,7 @@ def _download_and_cache():
         f.write(content)
 
 
-def reshape(text: str, harakat: bool = True, get_display: bool = False) -> str:
+def reshape(text: str, get_display: bool = False, width: int = 0, harakat: bool = True) -> str:
     has_diacritics = any(combining(ch) for ch in text)
     data = _load_arabic_shaping()
 
@@ -71,16 +71,49 @@ def reshape(text: str, harakat: bool = True, get_display: bool = False) -> str:
             reshape_text[i] = chr(ord(isolated(letter)) + Connect)
     result = ''.join(reshape_text)
 
+    if width:
+        result = line_breaker(result, width)
+
     if get_display:
         result = _get_display(result)
-        if has_diacritics: result = fix_diacritics_display(result)
+        if has_diacritics and harakat:
+            result = _fix_diacritics_display(result)
 
     return result
 
 
+def line_breaker(text: str, width: int) -> str:
+    lines, line = [], []
+    length, break_at = 0, None
+
+    for char in text:
+        if char == ' ':
+            break_at = len(line)
+
+        line.append(char)
+        length += not combining(char)
+
+        if length > width:
+            if break_at is None:
+                lines.append(''.join(line[:-1]))
+                line = line[-1:]
+                length = 1
+            else:
+                lines.append(''.join(line[:break_at]))
+                line = line[break_at + 1:]
+                length = sum(not combining(c) for c in line)
+
+            break_at = None
+
+    if line:
+        lines.append(''.join(line))
+
+    return '\n'.join(lines)
+
+
 def _get_display(text: str) -> str:
-    if all(bidirectional(ch) in ('NSM', 'WS', 'ON', 'AL') for ch in text):
-        return text[::-1]
+    if all(bidirectional(ch) in ('NSM', 'WS', 'AL') or bidirectional(ch) == "ON" and not mirrored(ch) for ch in text.replace("\n", "")):
+        return '\n'.join(line[::-1] for line in text.split("\n"))
 
     try:
         from bidi.algorithm import get_display
@@ -92,7 +125,7 @@ def _get_display(text: str) -> str:
     return get_display(text)
 
 
-def fix_diacritics_display(text: str) -> str:
+def _fix_diacritics_display(text: str) -> str:
     result, pending = [], []
     for ch in text:
         if combining(ch):
