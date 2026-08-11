@@ -49,7 +49,7 @@ def _download_and_cache():
         f.write(content)
 
 
-def reshape(text: str, get_display: bool = False, width: int = 0, harakat: bool = True) -> str:
+def reshape(text: str, get_display: bool = False, harakat: bool = True) -> str:
     has_diacritics = any(combining(ch) for ch in text)
     data = _load_arabic_shaping()
 
@@ -70,9 +70,6 @@ def reshape(text: str, get_display: bool = False, width: int = 0, harakat: bool 
 
             reshape_text[i] = chr(ord(isolated(letter)) + Connect)
     result = ''.join(reshape_text)
-
-    if width:
-        result = line_breaker(result, width)
 
     if get_display:
         result = _get_display(result)
