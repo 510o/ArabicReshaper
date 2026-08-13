@@ -49,10 +49,17 @@ def _download_and_cache():
         f.write(content)
 
 
+def _isolated_form(letter: str) -> str:
+    try:
+        return lookup(chartype(letter) + " ISOLATED FORM")
+    except (LookupError, ValueError, TypeError):
+        return None
+
+
 def reshape(text: str, harakat: bool = True) -> str:
     data = _load_arabic_shaping()
 
-    if not harakat: text = clear_diacritics(text)
+    if not harakat: text = ''.join(ch for ch in text if not combining(ch))
 
     reshape_text = list(text)
 
@@ -66,16 +73,53 @@ def reshape(text: str, harakat: bool = True) -> str:
             if _letter and _letter in data['D'] + data['L'] + data['C']: Connect += 1
             if letter in data['D'] and letter_ and letter_ in data['D'] + data['R'] + data['C']: Connect += 2
 
-            reshape_text[i] = chr(ord(isolated(letter)) + Connect)
+            reshape_text[i] = chr(ord(_isolated_form(letter)) + Connect)
     result = ''.join(reshape_text)
 
     return result
 
 
-def get_display(text: str) -> str:
+def line_breaker(text: str, width: int) -> str:
+    lines, line, length, break_at, nl = [], [], 0, -1, False
+
+    for char in text:
+        nl = char == '\n'
+
+        if char == ' ': break_at = len(line)
+        if not nl:
+            line.append(char)
+            length += not combining(char)
+
+        if nl or length > width:
+            cut = len(line) if nl else (break_at if break_at > -1 else len(line) - 1)
+            lines.append(''.join(line[:cut]))
+            line = line[cut + (0 if nl else break_at > -1):]
+            length = sum(not combining(c) for c in line)
+            break_at = -1
+
+    if line or nl: lines.append(''.join(line))
+
+    return '\n'.join(lines)
+
+
+def _fix_diacritics_display(text: str) -> str:
+    result, pending = [], []
+    for ch in text:
+        if combining(ch):
+            pending.insert(0, ch)
+        else:
+            result.append(ch)
+            result.extend(pending)
+            pending = []
+
+    result.extend(pending)
+    return ''.join(result)
+
+
+def apply_display(text: str) -> str:
     result = ""
-    if all(bidirectional(ch) in ('NSM', 'WS', 'AL') or bidirectional(ch) == "ON" and not mirrored(ch) for ch in text.replace("\n", "")):
-        result = '\n'.join(line[::-1] for line in text.split("\n"))
+    if all(bidirectional(ch) in ('NSM', 'WS', 'AL') or bidirectional(ch) == 'ON' and not mirrored(ch) for ch in text.replace('\n', '')):
+        result = '\n'.join(line[::-1] for line in text.split('\n'))
 
     else:
         try:
@@ -93,55 +137,11 @@ def get_display(text: str) -> str:
     return result
 
 
-def _fix_diacritics_display(text: str) -> str:
-    result, pending = [], []
-    for ch in text:
-        if combining(ch):
-            pending.insert(0, ch)
-        else:
-            result.append(ch)
-            result.extend(pending)
-            pending = []
+def align_text(text: str, width: int, right_alignment: bool = True) -> str:
+    def pad(line):
+        if not line:
+            return line
+        fill = ' ' * (width - sum(not combining(c) for c in line))
+        return fill + line if right_alignment else line + fill
 
-    result.extend(pending)
-    return ''.join(result)
-
-
-def line_breaker(text: str, width: int, right_alignment: bool = False) -> str:
-    vlen = lambda s: sum(not combining(c) for c in s)
-    lines, line, length, break_at = [], [], 0, -1
-
-    for char in text:
-        nl = char == '\n'
-
-        if char == ' ':
-            break_at = len(line)
-        if not nl:
-            line.append(char)
-            length += not combining(char)
-
-        if nl or length > width:
-            cut = len(line) if nl else (break_at if break_at > -1 else len(line) - 1)
-            lines.append(''.join(line[:cut]))
-            line = line[cut + (0 if nl else break_at > -1):]
-            length = vlen(line)
-            break_at = -1
-
-    if line:
-        lines.append(''.join(line))
-
-    if right_alignment:
-        lines = [' ' * (width - vlen(l)) + l for l in lines]
-
-    return '\n'.join(lines)
-
-
-def clear_diacritics(text: str) -> str:
-    return ''.join(ch for ch in text if not combining(ch))
-
-
-def isolated(letter: str) -> str:
-    try:
-        return lookup(chartype(letter) + " ISOLATED FORM")
-    except (LookupError, ValueError, TypeError):
-        return None
+    return '\n'.join(pad(line) for line in text.split('\n'))
