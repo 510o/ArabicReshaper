@@ -79,31 +79,28 @@ def reshape(text: str, get_display: bool = False, harakat: bool = True) -> str:
     return result
 
 
-def line_breaker(text: str, width: int) -> str:
-    lines, line = [], []
-    length, break_at = 0, None
+def line_breaker(text: str, width: int, right_alignment: bool = False) -> str:
+    vlen = lambda s: sum(not combining(c) for c in s)
+    lines, line, length, break_at = [], [], 0, -1
 
     for char in text:
         if char == ' ':
             break_at = len(line)
-
         line.append(char)
         length += not combining(char)
 
         if length > width:
-            if break_at is None:
-                lines.append(''.join(line[:-1]))
-                line = line[-1:]
-                length = 1
-            else:
-                lines.append(''.join(line[:break_at]))
-                line = line[break_at + 1:]
-                length = sum(not combining(c) for c in line)
-
-            break_at = None
+            cut = break_at if break_at > -1 else len(line) - 1
+            lines.append(''.join(line[:cut]))
+            line = line[cut + (break_at > -1):]
+            length = vlen(line)
+            break_at = -1
 
     if line:
         lines.append(''.join(line))
+
+    if right_alignment:
+        lines = [l + ' ' * (width - vlen(l)) for l in lines]
 
     return '\n'.join(lines)
 
