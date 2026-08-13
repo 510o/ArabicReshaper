@@ -49,12 +49,10 @@ def _download_and_cache():
         f.write(content)
 
 
-def reshape(text: str, get_display: bool = False, harakat: bool = True) -> str:
-    has_diacritics = any(combining(ch) for ch in text)
+def reshape(text: str, harakat: bool = True) -> str:
     data = _load_arabic_shaping()
 
-    if has_diacritics and not harakat:
-        text = clear_diacritics(text)
+    if not harakat: text = clear_diacritics(text)
 
     reshape_text = list(text)
 
@@ -71,52 +69,28 @@ def reshape(text: str, get_display: bool = False, harakat: bool = True) -> str:
             reshape_text[i] = chr(ord(isolated(letter)) + Connect)
     result = ''.join(reshape_text)
 
-    if get_display:
-        result = _get_display(result)
-        if has_diacritics and harakat:
-            result = _fix_diacritics_display(result)
-
     return result
 
 
-def line_breaker(text: str, width: int, right_alignment: bool = False) -> str:
-    vlen = lambda s: sum(not combining(c) for c in s)
-    lines, line, length, break_at = [], [], 0, -1
-
-    for char in text:
-        if char == ' ':
-            break_at = len(line)
-        line.append(char)
-        length += not combining(char)
-
-        if length > width:
-            cut = break_at if break_at > -1 else len(line) - 1
-            lines.append(''.join(line[:cut]))
-            line = line[cut + (break_at > -1):]
-            length = vlen(line)
-            break_at = -1
-
-    if line:
-        lines.append(''.join(line))
-
-    if right_alignment:
-        lines = [l + ' ' * (width - vlen(l)) for l in lines]
-
-    return '\n'.join(lines)
-
-
-def _get_display(text: str) -> str:
+def get_display(text: str) -> str:
+    result = ""
     if all(bidirectional(ch) in ('NSM', 'WS', 'AL') or bidirectional(ch) == "ON" and not mirrored(ch) for ch in text.replace("\n", "")):
-        return '\n'.join(line[::-1] for line in text.split("\n"))
+        result = '\n'.join(line[::-1] for line in text.split("\n"))
 
-    try:
-        from bidi.algorithm import get_display
-    except ImportError:
-        raise RuntimeError(
-            "python-bidi is required for get_display=True.\n"
-            "Install it with: pip install python-bidi"
-        )
-    return get_display(text)
+    else:
+        try:
+            from bidi.algorithm import get_display
+        except ImportError:
+            raise RuntimeError(
+                "python-bidi is required for get_display=True.\n"
+                "Install it with: pip install python-bidi"
+            )
+        result = get_display(text)
+    
+    if any(combining(ch) for ch in text):
+        result = _fix_diacritics_display(result)
+
+    return result
 
 
 def _fix_diacritics_display(text: str) -> str:
@@ -131,6 +105,35 @@ def _fix_diacritics_display(text: str) -> str:
 
     result.extend(pending)
     return ''.join(result)
+
+
+def line_breaker(text: str, width: int, right_alignment: bool = False) -> str:
+    vlen = lambda s: sum(not combining(c) for c in s)
+    lines, line, length, break_at = [], [], 0, -1
+
+    for char in text:
+        nl = char == '\n'
+
+        if char == ' ':
+            break_at = len(line)
+        if not nl:
+            line.append(char)
+            length += not combining(char)
+
+        if nl or length > width:
+            cut = len(line) if nl else (break_at if break_at > -1 else len(line) - 1)
+            lines.append(''.join(line[:cut]))
+            line = line[cut + (0 if nl else break_at > -1):]
+            length = vlen(line)
+            break_at = -1
+
+    if line:
+        lines.append(''.join(line))
+
+    if right_alignment:
+        lines = [' ' * (width - vlen(l)) + l for l in lines]
+
+    return '\n'.join(lines)
 
 
 def clear_diacritics(text: str) -> str:
