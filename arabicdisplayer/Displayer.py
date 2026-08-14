@@ -79,8 +79,9 @@ def reshape(text: str, harakat: bool = True) -> str:
     return result
 
 
-def line_breaker(text: str, width: int) -> str:
+def line_breaker(text: str, width: int, first_line_offset: int = 0) -> str:
     lines, line, length, break_at, nl = [], [], 0, -1, False
+    limit = width - first_line_offset
 
     for char in text:
         nl = char == '\n'
@@ -90,7 +91,8 @@ def line_breaker(text: str, width: int) -> str:
             line.append(char)
             length += not combining(char)
 
-        if nl or length > width:
+        if nl or length > limit:
+            limit = width
             cut = len(line) if nl else (break_at if break_at > -1 else len(line) - 1)
             lines.append(''.join(line[:cut]))
             line = line[cut + (0 if nl else break_at > -1):]
