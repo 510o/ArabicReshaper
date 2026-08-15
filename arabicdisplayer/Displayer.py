@@ -129,7 +129,7 @@ def apply_display(text: str) -> str:
         except ImportError:
             raise RuntimeError(
                 "python-bidi is required for get_display=True.\n"
-                "Install it with: pip install python-bidi"
+                "Install it with: pip install python-bidi==0.4.2"
             )
         result = get_display(text)
     
